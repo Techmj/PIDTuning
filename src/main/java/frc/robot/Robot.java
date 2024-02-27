@@ -11,8 +11,10 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.State;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.Joystick;
@@ -86,6 +88,7 @@ public class Robot extends LoggedRobot {
   ArmFeedforward armFeedforward;
   DutyCycleEncoder thruBore = new DutyCycleEncoder(2);
   double pidOutput;
+  double ffVoltage;
 
   @Override
   public void robotInit() {
@@ -108,15 +111,19 @@ public class Robot extends LoggedRobot {
     m_motor.setInverted(false);
 
     // Constraints Coefficients
-    maxVel = 180;
-    maxAcc = 90;
+    // maxVel = 180;
+    // maxAcc = 90;
+    maxVel = Units.degreesToRadians(180);
+    maxAcc = Units.degreesToRadians(90);
+    // thruBore.setDistancePerRotation(-360);
+    thruBore.setDistancePerRotation(-2 * Math.PI);
 
     // PID coefficients
-    kP = 0.004;
+    kP = 0.003;
     kD = 0;
-    kV = 0.0;
+    kV = 1;
 
-    setPoint = 0;
+    setPoint = -Math.PI / 4;
     // setPoint = 0;
 
     profiledPIDController = new ProfiledPIDController(kP, 0, kD,
@@ -124,16 +131,17 @@ public class Robot extends LoggedRobot {
 
     profiledPIDController.setGoal(new State(setPoint, 0));
 
-    armFeedforward = new ArmFeedforward(0, 0, kV);
+    armFeedforward = new ArmFeedforward(0, 2.0001, 5);
 
-    thruBore.setDistancePerRotation(-360);
     thruBore.setPositionOffset(0.659);
 
     currentPosition = thruBore.getDistance();
 
     profiledPIDController.reset(currentPosition);
 
-    SmartDashboard.putNumber("setpoint", setPoint);
+    // profiledPIDController.enableContinuousInput(-Math.PI, Math.PI);
+
+    SmartDashboard.putNumber("setpoint", Units.radiansToDegrees(setPoint));
 
   }
 
@@ -142,8 +150,21 @@ public class Robot extends LoggedRobot {
 
     currentPosition = thruBore.getDistance();
 
-    SmartDashboard.putNumber("current pos", currentPosition);
+    SmartDashboard.putNumber("current pos", Units.radiansToDegrees(currentPosition));
     SmartDashboard.putNumber("absolute pos", thruBore.getAbsolutePosition());
+
+    // ffVoltage =
+    // armFeedforward.calculate(profiledPIDController.getSetpoint().position,
+    // profiledPIDController.getSetpoint().velocity);
+
+    // ffVoltage =
+    // armFeedforward.calculate(profiledPIDController.getSetpoint().position,
+    // 0, 0);
+
+    ffVoltage = armFeedforward.calculate(profiledPIDController.getSetpoint().position,
+        profiledPIDController.getSetpoint().velocity);
+
+    SmartDashboard.putNumber("ffVoltage", ffVoltage);
 
     pidOutput = profiledPIDController.calculate(currentPosition,
         setPoint);
@@ -154,7 +175,7 @@ public class Robot extends LoggedRobot {
   @Override
   public void teleopPeriodic() {
 
-    m_motor.set(pidOutput);
+    m_motor.setVoltage(ffVoltage);
 
     // double pidVelocitySetpoint = profiledPIDController.getSetpoint().velocity;
     // SmartDashboard.putNumber("desiredVelocity", pidVelocitySetpoint);
