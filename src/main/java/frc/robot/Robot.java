@@ -116,7 +116,7 @@ public class Robot extends LoggedRobot {
     kD = 0;
     kV = 0.0;
 
-    setPoint = 30;
+    setPoint = 0;
     // setPoint = 0;
 
     profiledPIDController = new ProfiledPIDController(kP, 0, kD,
